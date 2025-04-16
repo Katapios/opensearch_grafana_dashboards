@@ -1,0 +1,67 @@
+version: '3.8'
+
+services:
+
+  opensearch:
+    build:
+      context: ./opensearch
+      dockerfile: Dockerfile.opensearch
+    container_name: opensearch
+    ports:
+      - "9200:9200"
+    volumes:
+      - opensearch-data:/usr/share/opensearch/data
+      - ./var/www/opensearch-data:/usr/share/opensearch/data
+    networks:
+      - bx
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9200/ > /dev/null || exit 1"]
+      interval: 10s
+      retries: 5
+      start_period: 20s
+
+
+  opensearch-dashboards:
+    build:
+      context: ./opensearch
+      dockerfile: Dockerfile.dashboards
+    container_name: opensearch-dashboards
+    ports:
+      - "5601:5601"
+    depends_on:
+      opensearch:
+        condition: service_healthy
+    networks:
+      bx:
+
+
+  grafana:
+    build:
+      context: ./grafana
+      dockerfile: Dockerfile
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-storage:/var/lib/grafana
+      # - ./var/www/grafana-storage:/var/lib/grafana
+      # - ./opensearch/config/grafana/provisioning:/etc/grafana/provisioning
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    depends_on:
+      opensearch:
+        condition: service_healthy    
+    networks:
+      bx:
+    
+
+
+
+networks:
+  bx:
+
+volumes:
+  opensearch-data:
+    driver: local
+  grafana-storage:
+    driver: local      
